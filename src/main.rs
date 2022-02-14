@@ -58,7 +58,7 @@ fn main() -> io::Result<()> {
                             Entry::Occupied(c) => {
                                 c.on_packet(&mut nic, ip_header, tcp_header, &buf[datai..nbytes])?;
                             }
-                            Entry::Occupied(e) => {
+                            Entry::Vacant(e) => {
                                 if let Some(c) = tcp::Connection::accept(
                                     &mut nic,
                                     ip_header,
@@ -68,7 +68,6 @@ fn main() -> io::Result<()> {
                                     e.insert(c);
                                 }
                             }
-                            Entry::Vacant(_) => todo!(),
                         }
                     }
                     Err(e) => {
