@@ -1,5 +1,9 @@
 #!/bin/bash
 cargo build
+ext=$?
+if [[ $ext -ne 0 ]]; then
+	exit $ext
+fi
 sudo setcap cap_net_admin=eip target/debug/thunder
 sudo chmod 666 /sys/class/leds/sys_led/trigger
 sudo chmod 666 /sys/class/leds/red_red/trigger

@@ -1,9 +1,20 @@
 use tun_tap::{Iface, Mode};
+use std::hash::Hash;
 use std::io;
-use std::fs;
-use std::{thread, time::Duration};
+use std::collections::HashMap;
+use std::net::Ipv4Addr;
+
+mod tcp;
+
+#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq)]
+struct Quad {
+    src: (Ipv4Addr, u16),
+    dst: (Ipv4Addr, u16),
+}
 
 fn main() -> io::Result<()>  {
+    let mut connections: HashMap<Quad, tcp::State> = Default::default();
+
     let nic = Iface::new("tun0", Mode::Tun)?;
     //fs::write("/sys/class/leds/red_red/trigger", "heartbeat").expect("error");
 
@@ -22,27 +33,24 @@ fn main() -> io::Result<()>  {
 
         // parsing ipv4 header
         match etherparse::Ipv4HeaderSlice::from_slice(&buf[4..nbytes]) {
-            Ok(p) => {
-                let src = p.source_addr();
-                let dst = p.destination_addr();
-                let proto = p.protocol();
+            Ok(ip_header) => {
+                let src = ip_header.source_addr();
+                let dst = ip_header.destination_addr();
 
                 // if not tcp packet
-                if proto != 0x06 {
+                if ip_header.protocol() != 0x06 {
                     continue;
                 }
-                
+
                 // parsing tcp header
-                match etherparse::TcpHeaderSlice::from_slice(&buf[4 + p.slice().len()..]) {
-                    Ok(p) => {
-                        // (srcip, srcport, dstip, dstport) = 
-                        eprintln!(
-                            "{} → {} {}b of tcp to port {}", 
-                            src, 
-                            dst, 
-                            p.slice().len(),
-                            p.destination_port()
-                        );
+                match etherparse::TcpHeaderSlice::from_slice(&buf[4 + ip_header.slice().len()..nbytes]) {
+                    Ok(tcp_header) => {
+                        let datai = 4 + ip_header.slice().len() + tcp_header.slice().len(); 
+
+                        connections.entry(Quad {
+                            src: (src, tcp_header.source_port()),
+                            dst: (dst, tcp_header.destination_port()),
+                        }).or_default().on_packet(ip_header, tcp_header, &buf[datai..nbytes]);
                     },
                     Err(e) => {
                         eprintln!("ignoring weird tcp packet {:?}", e);
@@ -53,13 +61,5 @@ fn main() -> io::Result<()>  {
                 eprintln!("ignoring weird ip packet {:?}", e);
             }
         }
-        
-        // eprintln!(
-        //     "read {} bytes (flags: {:x}, proto: {:x}): {:x?}", 
-        //     nbytes - 4,
-        //     flags,
-        //     proto, 
-        //     &buf[..nbytes]
-        // );
     }
 }
