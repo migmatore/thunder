@@ -1,8 +1,8 @@
-use tun_tap::{Iface, Mode};
+use std::collections::HashMap;
 use std::hash::Hash;
 use std::io;
-use std::collections::HashMap;
 use std::net::Ipv4Addr;
+use tun_tap::{Iface, Mode};
 
 mod tcp;
 
@@ -12,7 +12,7 @@ struct Quad {
     dst: (Ipv4Addr, u16),
 }
 
-fn main() -> io::Result<()>  {
+fn main() -> io::Result<()> {
     let mut connections: HashMap<Quad, tcp::State> = Default::default();
 
     let nic = Iface::new("tun0", Mode::Tun)?;
@@ -43,20 +43,25 @@ fn main() -> io::Result<()>  {
                 }
 
                 // parsing tcp header
-                match etherparse::TcpHeaderSlice::from_slice(&buf[4 + ip_header.slice().len()..nbytes]) {
+                match etherparse::TcpHeaderSlice::from_slice(
+                    &buf[4 + ip_header.slice().len()..nbytes],
+                ) {
                     Ok(tcp_header) => {
-                        let datai = 4 + ip_header.slice().len() + tcp_header.slice().len(); 
+                        let datai = 4 + ip_header.slice().len() + tcp_header.slice().len();
 
-                        connections.entry(Quad {
-                            src: (src, tcp_header.source_port()),
-                            dst: (dst, tcp_header.destination_port()),
-                        }).or_default().on_packet(ip_header, tcp_header, &buf[datai..nbytes]);
-                    },
+                        connections
+                            .entry(Quad {
+                                src: (src, tcp_header.source_port()),
+                                dst: (dst, tcp_header.destination_port()),
+                            })
+                            .or_default()
+                            .on_packet(ip_header, tcp_header, &buf[datai..nbytes]);
+                    }
                     Err(e) => {
                         eprintln!("ignoring weird tcp packet {:?}", e);
                     }
                 }
-            },
+            }
             Err(e) => {
                 eprintln!("ignoring weird ip packet {:?}", e);
             }
