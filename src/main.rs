@@ -47,15 +47,29 @@ fn main() -> io::Result<()> {
                     &buf[4 + ip_header.slice().len()..nbytes],
                 ) {
                     Ok(tcp_header) => {
+                        use std::collections::hash_map::Entry;
+
                         let datai = 4 + ip_header.slice().len() + tcp_header.slice().len();
 
-                        connections
-                            .entry(Quad {
-                                src: (src, tcp_header.source_port()),
-                                dst: (dst, tcp_header.destination_port()),
-                            })
-                            .or_default()
-                            .on_packet(&mut nic, ip_header, tcp_header, &buf[datai..nbytes])?;
+                        match connections.entry(Quad {
+                            src: (src, tcp_header.source_port()),
+                            dst: (dst, tcp_header.destination_port()),
+                        }) {
+                            Entry::Occupied(c) => {
+                                c.on_packet(&mut nic, ip_header, tcp_header, &buf[datai..nbytes])?;
+                            }
+                            Entry::Occupied(e) => {
+                                if let Some(c) = tcp::Connection::accept(
+                                    &mut nic,
+                                    ip_header,
+                                    tcp_header,
+                                    &buf[datai..nbytes],
+                                )? {
+                                    e.insert(c);
+                                }
+                            }
+                            Entry::Vacant(_) => todo!(),
+                        }
                     }
                     Err(e) => {
                         eprintln!("ignoring weird tcp packet {:?}", e);
