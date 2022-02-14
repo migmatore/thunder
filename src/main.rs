@@ -13,7 +13,7 @@ struct Quad {
 }
 
 fn main() -> io::Result<()> {
-    let mut connections: HashMap<Quad, tcp::State> = Default::default();
+    let mut connections: HashMap<Quad, tcp::Connection> = Default::default();
 
     let mut nic = Iface::new("tun0", Mode::Tun)?;
     //fs::write("/sys/class/leds/red_red/trigger", "heartbeat").expect("error");

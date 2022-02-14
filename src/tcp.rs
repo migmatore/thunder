@@ -7,10 +7,44 @@ pub enum State {
     Estab,
 }
 
-impl Default for State {
+pub struct Connection {
+    state: State,
+}
+
+struct SendSequenceSpace {
+    /// send unacknowledged
+    una: usize,
+    /// send next
+    nxt: usize,
+    /// send window
+    wnd: usize,
+    /// send urgent pointer
+    up: bool,
+    /// segment sequence number used for last window update
+    wl1: usize,
+    /// segment acknowledgment number used for last window update
+    wl2: usize,
+    /// initial send sequence number
+    iss: usize,
+}
+
+struct RecvSequenceSpace {
+    /// receive next
+    nxt: usize,
+    /// receive window
+    wnd: usize,
+    /// receive urgent pointer
+    up: bool,
+    /// initial receive sequence number
+    irs: usize,
+}
+
+impl Default for Connection {
     fn default() -> Self {
-        //State::Closed
-        State::Listen
+        // State::Closed
+        Connection {
+            state: State::Listen,
+        }
     }
 }
 
