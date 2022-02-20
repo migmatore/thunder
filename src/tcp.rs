@@ -64,7 +64,7 @@ impl Connection {
             return Ok(None);
         }
 
-        let iss = 0; 
+        let iss = 0;
 
         let mut c = Connection {
             state: State::SybnRcvd,
@@ -116,6 +116,10 @@ impl Connection {
             ],
         );
 
+        syn_ack.checksum = syn_ack
+            .calc_checksum_ipv4(&ip, &[])
+            .expect("filed to compute ckecksum");
+
         eprintln!("got ip header:\n{:02x?}", ip_header);
         eprintln!("got tcp header:\n{:02x?}", tcp_header);
 
@@ -126,7 +130,7 @@ impl Connection {
             syn_ack.write(&mut unwritten);
             unwritten.len()
         };
-        
+
         eprintln!("responding with {:02x?}", &buf[..buf.len() - unwritten]);
 
         nic.send(&buf[..unwritten]);
