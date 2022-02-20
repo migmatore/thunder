@@ -116,6 +116,9 @@ impl Connection {
             ],
         );
 
+        eprintln!("got ip header:\n{:02x?}", ip_header);
+        eprintln!("got tcp header:\n{:02x?}", tcp_header);
+
         // write out the headers
         let unwritten = {
             let mut unwritten = &mut buf[..];
@@ -123,6 +126,8 @@ impl Connection {
             syn_ack.write(&mut unwritten);
             unwritten.len()
         };
+        
+        eprintln!("responding with {:02x?}", &buf[..unwritten]);
 
         nic.send(&buf[..unwritten]);
 
@@ -144,7 +149,7 @@ impl Connection {
         ip_header: etherparse::Ipv4HeaderSlice<'a>,
         tcp_header: etherparse::TcpHeaderSlice<'a>,
         data: &'a [u8],
-    ) -> io::Result<usize> {
-
+    ) -> io::Result<()> {
+        unimplemented!()
     }
 }

@@ -55,8 +55,8 @@ fn main() -> io::Result<()> {
                             src: (src, tcp_header.source_port()),
                             dst: (dst, tcp_header.destination_port()),
                         }) {
-                            Entry::Occupied(c) => {
-                                c.on_packet(&mut nic, ip_header, tcp_header, &buf[datai..nbytes])?;
+                            Entry::Occupied(mut c) => {
+                                c.get_mut().on_packet(&mut nic, ip_header, tcp_header, &buf[datai..nbytes])?;
                             }
                             Entry::Vacant(e) => {
                                 if let Some(c) = tcp::Connection::accept(
