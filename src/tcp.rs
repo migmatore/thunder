@@ -127,7 +127,7 @@ impl Connection {
             unwritten.len()
         };
         
-        eprintln!("responding with {:02x?}", &buf[..unwritten]);
+        eprintln!("responding with {:02x?}", &buf[..buf.len() - unwritten]);
 
         nic.send(&buf[..unwritten]);
 

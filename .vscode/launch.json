@@ -12,8 +12,8 @@
             "cargo": {
                 "args": [
                     "build",
-                    // "--bin=thunder",
-                    // "--package=thunder"
+                    "--bin=thunder",
+                    "--package=thunder"
                 ],
                 "filter": {
                     "name": "thunder",
@@ -21,6 +21,7 @@
                 }
             },
             "args": [],
+            "sudo": true,
             "cwd": "${workspaceFolder}"
         },
         {
