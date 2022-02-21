@@ -76,7 +76,7 @@ fn main() -> io::Result<()> {
                 }
             }
             Err(e) => {
-                eprintln!("ignoring weird ip packet {:?}", e);
+                //eprintln!("ignoring weird ip packet {:?}", e);
             }
         }
     }
