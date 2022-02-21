@@ -10,6 +10,7 @@ pub struct Connection {
     state: State,
     send: SendSequenceSpace,
     recv: RecvSequenceSpace,
+    ip: etherparse::Ipv4Header,
 }
 
 struct SendSequenceSpace {
@@ -83,6 +84,23 @@ impl Connection {
                 wnd: tcp_header.window_size(),
                 up: false,
             },
+            ip: etherparse::Ipv4Header::new(
+                0,
+                64,
+                etherparse::IpTrafficClass::Tcp,
+                [
+                    ip_header.destination()[0],
+                    ip_header.destination()[1],
+                    ip_header.destination()[2],
+                    ip_header.destination()[3],
+                ],
+                [
+                    ip_header.source()[0],
+                    ip_header.source()[1],
+                    ip_header.source()[2],
+                    ip_header.source()[3],
+                ],
+            );
         };
 
         // need to start establishing a connection
@@ -97,26 +115,11 @@ impl Connection {
         syn_ack.syn = true;
         syn_ack.ack = true;
 
-        let mut ip = etherparse::Ipv4Header::new(
-            syn_ack.header_len(),
-            64,
-            etherparse::IpTrafficClass::Tcp,
-            [
-                ip_header.destination()[0],
-                ip_header.destination()[1],
-                ip_header.destination()[2],
-                ip_header.destination()[3],
-            ],
-            [
-                ip_header.source()[0],
-                ip_header.source()[1],
-                ip_header.source()[2],
-                ip_header.source()[3],
-            ],
-        );
+        ip.
+
         // the kernel does this for us
         // syn_ack.checksum = syn_ack
-        //     .calc_checksum_ipv4(&ip, &[])
+        //     .calc_checksum_ipv4(&c.ip, &[])
         //     .expect("filed to compute ckecksum");
 
         // eprintln!("got ip header:\n{:02x?}", ip_header);
