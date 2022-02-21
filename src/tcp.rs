@@ -115,7 +115,7 @@ impl Connection {
         syn_ack.syn = true;
         syn_ack.ack = true;
 
-        ip.
+        ip.set_payload_len(syn_ack.header_len() + 0);
 
         // the kernel does this for us
         // syn_ack.checksum = syn_ack
