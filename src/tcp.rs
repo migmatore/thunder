@@ -1,9 +1,9 @@
 use std::io;
 
 pub enum State {
-    Listen,
+    //Listen,
     SybnRcvd,
-    // Estab,
+    Estab,
 }
 
 pub struct Connection {
@@ -154,8 +154,13 @@ impl Connection {
         data: &'a [u8],
     ) -> io::Result<()> {
         match self.state {
-            State::Listen => todo!(),
-            State::SybnRcvd => todo!(),
+            // State::Listen => todo!(),
+            State::SybnRcvd => {
+                // expect to get an ACK for our SYN
+            },
+            State::Estab => {
+                unimplemented!()
+            },
         }
     }
 }
