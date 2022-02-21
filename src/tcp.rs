@@ -1,10 +1,9 @@
 use std::io;
 
 pub enum State {
-    Closed,
     Listen,
     SybnRcvd,
-    Estab,
+    // Estab,
 }
 
 pub struct Connection {
@@ -154,6 +153,9 @@ impl Connection {
         tcp_header: etherparse::TcpHeaderSlice<'a>,
         data: &'a [u8],
     ) -> io::Result<()> {
-        Ok(())
+        match self.state {
+            State::Listen => todo!(),
+            State::SybnRcvd => todo!(),
+        }
     }
 }
