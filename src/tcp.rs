@@ -100,7 +100,7 @@ impl Connection {
                     ip_header.source()[2],
                     ip_header.source()[3],
                 ],
-            );
+            ),
         };
 
         // need to start establishing a connection
@@ -115,7 +115,7 @@ impl Connection {
         syn_ack.syn = true;
         syn_ack.ack = true;
 
-        ip.set_payload_len(syn_ack.header_len() + 0);
+        c.ip.set_payload_len(syn_ack.header_len() as usize + 0);
 
         // the kernel does this for us
         // syn_ack.checksum = syn_ack
@@ -128,7 +128,7 @@ impl Connection {
         // write out the headers
         let unwritten = {
             let mut unwritten = &mut buf[..];
-            ip.write(&mut unwritten);
+            c.ip.write(&mut unwritten);
             syn_ack.write(&mut unwritten);
             unwritten.len()
         };
@@ -156,14 +156,36 @@ impl Connection {
         tcp_header: etherparse::TcpHeaderSlice<'a>,
         data: &'a [u8],
     ) -> io::Result<()> {
+        // acceptable ack check
+        // SND.UNA < SEG.ACK =< SND.NXT
+        // but remember wrapping!
+        let ackn = tcp_header.acknowledgment_number();
+
+        if self.send.una < ackn {
+            if ackn <= self.send.nxt {
+                // nowrapping
+                //u < a <= n
+            } else {
+                // u < a, a > n
+            }
+        }
+
+        if !(self.send.una < tcp_header.acknowledgment_number()
+            && tcp_header.acknowledgment_number() <= self.send.nxt)
+        {
+            return Ok(());
+        }
+
         match self.state {
             // State::Listen => todo!(),
             State::SybnRcvd => {
                 // expect to get an ACK for our SYN
-            },
+            }
             State::Estab => {
                 unimplemented!()
-            },
+            }
         }
+
+        Ok(())
     }
 }
