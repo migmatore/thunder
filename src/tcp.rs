@@ -115,13 +115,13 @@ impl Connection {
                 ip_header.source()[3],
             ],
         );
+        // the kernel does this for us
+        // syn_ack.checksum = syn_ack
+        //     .calc_checksum_ipv4(&ip, &[])
+        //     .expect("filed to compute ckecksum");
 
-        syn_ack.checksum = syn_ack
-            .calc_checksum_ipv4(&ip, &[])
-            .expect("filed to compute ckecksum");
-
-        eprintln!("got ip header:\n{:02x?}", ip_header);
-        eprintln!("got tcp header:\n{:02x?}", tcp_header);
+        // eprintln!("got ip header:\n{:02x?}", ip_header);
+        // eprintln!("got tcp header:\n{:02x?}", tcp_header);
 
         // write out the headers
         let unwritten = {
@@ -154,6 +154,6 @@ impl Connection {
         tcp_header: etherparse::TcpHeaderSlice<'a>,
         data: &'a [u8],
     ) -> io::Result<()> {
-        unimplemented!()
+        Ok(())
     }
 }
