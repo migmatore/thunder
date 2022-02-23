@@ -162,11 +162,9 @@ impl Connection {
         let ackn = tcp_header.acknowledgment_number();
 
         if self.send.una < ackn {
-            if ackn <= self.send.nxt {
-                // nowrapping
-                //u < a <= n
-            } else {
-                // u < a, a > n
+            // check is violated if n is between u and a
+            if self.send.nxt > self.send.una && self.send.nxt < ackn {
+                return Ok(());
             }
         }
 
