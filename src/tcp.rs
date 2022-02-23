@@ -162,17 +162,21 @@ impl Connection {
         let ackn = tcp_header.acknowledgment_number();
 
         if self.send.una < ackn {
-            // check is violated if n is between u and a
-            if self.send.nxt > self.send.una && self.send.nxt < ackn {
+            // check is violated iff n is between u and a
+            if self.send.nxt >= self.send.una && self.send.nxt < ackn {
+                return Ok(());
+            }
+        } else {
+            // check is okay iff n is between u and a
+            if self.send.nxt >= ackn && self.send.nxt < self.send.una {
+
+            } else {
                 return Ok(());
             }
         }
 
-        if !(self.send.una < tcp_header.acknowledgment_number()
-            && tcp_header.acknowledgment_number() <= self.send.nxt)
-        {
-            return Ok(());
-        }
+        // valid segment ckeck 
+        
 
         match self.state {
             // State::Listen => todo!(),
