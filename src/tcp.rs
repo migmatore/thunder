@@ -184,17 +184,45 @@ impl Connection {
 }
 
 fn is_between_wrapped(start: usize, x: usize, end: usize) -> bool {
-    if start < x {
-        // check is violated iff end is between start and x
-        if self.send.nxt >= self.send.una && self.send.nxt < ackn {
-            return Ok(());
-        }
-    } else {
-        // check is okay iff n is between u and a
-        if self.send.nxt >= ackn && self.send.nxt < self.send.una {
+    use std::cmp::Ordering;
 
-        } else {
-            return Ok(());
+    match start.cmp(&x) {
+        Ordering::Equal => return false,
+        Ordering::Less => {
+            // we have:
+            // 
+            // |-----------S---X---------------|
+            //
+            // X is between S and E (S < X < E) in these cases:
+            // 
+            // |-----------S---X--E------------|
+            //
+            // |--------E--S---X---------------|
+            //
+            // but *not* in these cases
+            //
+            // |-----------S---X--E------------|
+            //
+            // |-----------|---X---------------|
+            //             ^-S+E
+            //
+            // |-----------S---|---------------|
+            //             X+E-^
+            //
+            // or, on other words, iff !(S <= E <=X)
+            if end >= start && end <= x {
+                return false;
+            }
+        },
+        Ordering::Greater => {
+            // check is okay iff n is between u and a
+            if self.send.nxt >= ackn && self.send.nxt < self.send.una {
+
+            } else {
+                return false;
+            }
         }
     }
+
+    true
 }
