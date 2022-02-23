@@ -217,26 +217,26 @@ fn is_between_wrapped(start: usize, x: usize, end: usize) -> bool {
         Ordering::Greater => {
             // we have the opposite of above:
             // 
-            // |-----------X---S---------------|
+            // 0 |-----------X---S---------------| (wraparound)
             //
-            // X is between S and E (S < X < E) in these cases:
+            // X is between S and E (S < X < E) *only* in this case:
             // 
-            // |-----------S---X--E------------|
-            //
-            // |--------E--S---X---------------|
+            // 0 |-----------X---E--S------------| (wraparound)
             //
             // but *not* in these cases
             //
-            // |-----------S---X--E------------|
+            // 0 |-----------X---S--E------------| (wraparound)
             //
-            // |-----------|---X---------------|
-            //             ^-S+E
+            // 0 |--------E--X---S---------------| (wraparound)
             //
-            // |-----------S---|---------------|
-            //             X+E-^
+            // 0 |-----------|---S---------------| (wraparound)
+            //             ^-X+E
             //
-            // or, on other words, iff !(S <= E <=X)
-            if self.send.nxt >= ackn && self.send.nxt < self.send.una {
+            // 0 |-----------X---|---------------| (wraparound)
+            //             S+E-^
+            //
+            // or, on other words, iff S < E < X
+            if end >= x && end < start {
 
             } else {
                 return false;
