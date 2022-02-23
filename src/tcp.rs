@@ -161,25 +161,14 @@ impl Connection {
         // acceptable ack check
         // SND.UNA < SEG.ACK =< SND.NXT
         // but remember wrapping!
+        //
         let ackn = tcp_header.acknowledgment_number();
-
-        if self.send.una < ackn {
-            // check is violated iff n is between u and a
-            if self.send.nxt >= self.send.una && self.send.nxt < ackn {
-                return Ok(());
-            }
-        } else {
-            // check is okay iff n is between u and a
-            if self.send.nxt >= ackn && self.send.nxt < self.send.una {
-
-            } else {
-                return Ok(());
-            }
-        }
 
         //
         // valid segment ckeck 
         //
+
+
         match self.state {
             // State::Listen => todo!(),
             State::SybnRcvd => {
@@ -191,5 +180,21 @@ impl Connection {
         }
 
         Ok(())
+    }
+}
+
+fn is_between_wrapped(start: usize, x: usize, end: usize) -> bool {
+    if start < x {
+        // check is violated iff end is between start and x
+        if self.send.nxt >= self.send.una && self.send.nxt < ackn {
+            return Ok(());
+        }
+    } else {
+        // check is okay iff n is between u and a
+        if self.send.nxt >= ackn && self.send.nxt < self.send.una {
+
+        } else {
+            return Ok(());
+        }
     }
 }
