@@ -156,6 +156,8 @@ impl Connection {
         tcp_header: etherparse::TcpHeaderSlice<'a>,
         data: &'a [u8],
     ) -> io::Result<()> {
+        // first, check that sequence numbers are valid
+        // 
         // acceptable ack check
         // SND.UNA < SEG.ACK =< SND.NXT
         // but remember wrapping!
@@ -175,9 +177,9 @@ impl Connection {
             }
         }
 
+        //
         // valid segment ckeck 
-        
-
+        //
         match self.state {
             // State::Listen => todo!(),
             State::SybnRcvd => {
