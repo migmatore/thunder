@@ -176,6 +176,16 @@ impl Connection {
         // RCV.NXT =< SEG.SEQ+SEG.LEN-1 < RCV.NXT+RCV.WND
         //
         let seqn = tcp_header.sequence_number();
+
+        if data.len() == 0 && !tcp_header.syn() && !tcp_header.fin() {
+            // zero-length segment has separate rules for acceptance
+            if self.recv.wnd == 0 {
+                if seqn != self.recv.nxt {
+                    return Ok(());
+                }
+            }
+        }
+
         let w_end = self.recv.nxt.wrapping_add(self.recv.wnd as u32);
 
         if !is_between_wrapped(self.recv.nxt.wrapping_sub(1), seqn, w_end)
