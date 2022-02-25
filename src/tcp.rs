@@ -230,10 +230,10 @@ fn is_between_wrapped(start: usize, x: usize, end: usize) -> bool {
             // 0 |--------E--X---S---------------| (wraparound)
             //
             // 0 |-----------|---S---------------| (wraparound)
-            //             ^-X+E
+            //               ^-X+E
             //
             // 0 |-----------X---|---------------| (wraparound)
-            //             S+E-^
+            //               S+E-^
             //
             // or, on other words, iff S < E < X
             if end >= x && end < start {
