@@ -157,7 +157,7 @@ impl Connection {
         data: &'a [u8],
     ) -> io::Result<()> {
         // first, check that sequence numbers are valid
-        // 
+        //
         // acceptable ack check
         // SND.UNA < SEG.ACK =< SND.NXT
         // but remember wrapping!
@@ -169,10 +169,17 @@ impl Connection {
         }
 
         //
-        // valid segment ckeck 
+        // valid segment ckeck
         // RCV.NXT =< SEG.SEQ < RCV.NXT+RCV.WND
         //
-
+        let seqn = tcp_header.sequence_number();
+        if !is_between_wrapped(
+            self.recv.nxt.wrapping_sub(1),
+            seqn,
+            self.recv.nxt.wrapping_add(self.recv.wnd as u32),
+        ) {
+            return Ok(());
+        }
 
         match self.state {
             // State::Listen => todo!(),
@@ -195,11 +202,11 @@ fn is_between_wrapped(start: usize, x: usize, end: usize) -> bool {
         Ordering::Equal => return false,
         Ordering::Less => {
             // we have:
-            // 
+            //
             // 0 |-----------S---X---------------| (wraparound)
             //
             // X is between S and E (S < X < E) in these cases:
-            // 
+            //
             // 0 |-----------S---X--E------------| (wraparound)
             //
             // 0 |--------E--S---X---------------| (wraparound)
@@ -218,14 +225,14 @@ fn is_between_wrapped(start: usize, x: usize, end: usize) -> bool {
             if end >= start && end <= x {
                 return false;
             }
-        },
+        }
         Ordering::Greater => {
             // we have the opposite of above:
-            // 
+            //
             // 0 |-----------X---S---------------| (wraparound)
             //
             // X is between S and E (S < X < E) *only* in this case:
-            // 
+            //
             // 0 |-----------X---E--S------------| (wraparound)
             //
             // but *not* in these cases
@@ -242,7 +249,6 @@ fn is_between_wrapped(start: usize, x: usize, end: usize) -> bool {
             //
             // or, on other words, iff S < E < X
             if end < start && end > x {
-
             } else {
                 return false;
             }
