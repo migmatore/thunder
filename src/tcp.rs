@@ -184,25 +184,21 @@ impl Connection {
                 if seqn != self.recv.nxt {
                     return Ok(());
                 }
-            } else {
-                if !is_between_wrapped(self.recv.nxt.wrapping_sub(1), seqn, w_end) {
-                    return Ok(());
-                }
+            } else if !is_between_wrapped(self.recv.nxt.wrapping_sub(1), seqn, w_end) {
+                return Ok(());
             }
         } else {
             if self.recv.wnd == 0 {
                 return Ok(());
+            } else if !is_between_wrapped(self.recv.nxt.wrapping_sub(1), seqn, w_end)
+                && !is_between_wrapped(
+                    self.recv.nxt.wrapping_sub(1),
+                    seqn + data.len() as u32 - 1,
+                    w_end,
+                )
+            {
+                return Ok(());
             }
-        }
-
-        if !is_between_wrapped(self.recv.nxt.wrapping_sub(1), seqn, w_end)
-            && !is_between_wrapped(
-                self.recv.nxt.wrapping_sub(1),
-                seqn + data.len() as u32 - 1,
-                w_end,
-            )
-        {
-            return Ok(());
         }
 
         match self.state {
