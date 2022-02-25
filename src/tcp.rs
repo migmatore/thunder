@@ -169,15 +169,17 @@ impl Connection {
         }
 
         //
-        // valid segment ckeck
+        // valid segment ckeck. okay if it acks at least one byte, which means that at least one of
+        // the following is true:
+        //
         // RCV.NXT =< SEG.SEQ < RCV.NXT+RCV.WND
+        // RCV.NXT =< SEG.SEQ+SEG.LEN-1 < RCV.NXT+RCV.WND
         //
         let seqn = tcp_header.sequence_number();
-        if !is_between_wrapped(
-            self.recv.nxt.wrapping_sub(1),
-            seqn,
-            self.recv.nxt.wrapping_add(self.recv.wnd as u32),
-        ) {
+        let w_end = self.recv.nxt.wrapping_add(self.recv.wnd as u32);
+        if !is_between_wrapped(self.recv.nxt.wrapping_sub(1), seqn, w_end)
+            && !is_between_wrapped(self.recv.nxt.wrapping_sub(1), seqn + data.len() - 1, e_end)
+        {
             return Ok(());
         }
 
@@ -195,7 +197,7 @@ impl Connection {
     }
 }
 
-fn is_between_wrapped(start: usize, x: usize, end: usize) -> bool {
+fn is_between_wrapped(start: u32, x: u32, end: u32) -> bool {
     use std::cmp::Ordering;
 
     match start.cmp(&x) {
