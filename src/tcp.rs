@@ -159,10 +159,38 @@ impl Connection {
         // );
     }
 
-    fn send_rst<'a>(
-        &mut self,
-        nic: &mut tun_tap::Iface,
-    ) -> io::Result<()> {
+    fn send(&mut self, nic: &mut tun_tap::Iface, payload: &[u8]) -> io::Result<()> {
+        self.tcp.sequence_number = self.send.nxt;
+        self.tcp.acknowledgment_number = self.recv.nxt;
+        self.ip
+            .set_payload_len(self.tcp.header_len() as usize + payload.len());
+
+        // the kernel does this for us
+        // syn_ack.checksum = syn_ack
+        //     .calc_checksum_ipv4(&c.ip, &[])
+        //     .expect("filed to compute ckecksum");
+
+        // eprintln!("got ip header:\n{:02x?}", ip_header);
+        // eprintln!("got tcp header:\n{:02x?}", tcp_header);
+
+        // write out the headers
+        let unwritten = {
+            let mut unwritten = &mut buf[..];
+            c.ip.write(&mut unwritten);
+            syn_ack.write(&mut unwritten);
+            unwritten.len()
+        };
+
+        //eprintln!("responding with {:02x?}", &buf[..buf.len() - unwritten]);
+
+        nic.send(&buf[..unwritten]);
+    }
+
+    fn send_rst(&mut self, nic: &mut tun_tap::Iface) -> io::Result<()> {
+        self.tcp.rst = true;
+        self.tcp.sequence_number = 0;
+        self.tcp.acknowledgment_number = 0;
+        self.ip.set_payload_len(self.tcp.header_len());
     }
 
     pub fn on_packet<'a>(
