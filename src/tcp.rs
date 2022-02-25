@@ -166,6 +166,10 @@ impl Connection {
 
         if !is_between_wrapped(self.send.una, ackn, self.send.nxt.wrapping_add(1)) {
             return Ok(());
+            // return Err(io::Error::new(
+            //     io::ErrorKind::BrokenPipe,
+            //     "tried to ack unset byte",
+            // ));
         }
 
         //
@@ -212,6 +216,16 @@ impl Connection {
             // State::Listen => todo!(),
             State::SybnRcvd => {
                 // expect to get an ACK for our SYN
+                if !tcp_header.ack() {
+                    return Ok(());
+                }
+
+                // must have ACKed our SYN, since we detected at least one acked byte,
+                // and we have only sent one byte (THE SYN).
+                self.state = State::Estab;
+
+                // now let's terminate the connection!
+                
             }
             State::Estab => {
                 unimplemented!()
