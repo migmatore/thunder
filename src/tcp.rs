@@ -176,8 +176,8 @@ impl Connection {
         // RCV.NXT =< SEG.SEQ+SEG.LEN-1 < RCV.NXT+RCV.WND
         //
         let seqn = tcp_header.sequence_number();
-        
-        let mut slen = data.len();
+
+        let mut slen = data.len() as u32;
 
         if tcp_header.fin() {
             slen += 1;
@@ -189,7 +189,7 @@ impl Connection {
 
         let w_end = self.recv.nxt.wrapping_add(self.recv.wnd as u32);
 
-        if data.len() == 0 && !tcp_header.syn() && !tcp_header.fin() {
+        if slen == 0 {
             // zero-length segment has separate rules for acceptance
             if self.recv.wnd == 0 {
                 if seqn != self.recv.nxt {
@@ -202,11 +202,7 @@ impl Connection {
             if self.recv.wnd == 0 {
                 return Ok(());
             } else if !is_between_wrapped(self.recv.nxt.wrapping_sub(1), seqn, w_end)
-                && !is_between_wrapped(
-                    self.recv.nxt.wrapping_sub(1),
-                    seqn + data.len() as u32 - 1,
-                    w_end,
-                )
+                && !is_between_wrapped(self.recv.nxt.wrapping_sub(1), seqn + slen - 1, w_end)
             {
                 return Ok(());
             }
