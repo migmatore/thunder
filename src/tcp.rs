@@ -176,6 +176,7 @@ impl Connection {
         // RCV.NXT =< SEG.SEQ+SEG.LEN-1 < RCV.NXT+RCV.WND
         //
         let seqn = tcp_header.sequence_number();
+        let w_end = self.recv.nxt.wrapping_add(self.recv.wnd as u32);
 
         if data.len() == 0 && !tcp_header.syn() && !tcp_header.fin() {
             // zero-length segment has separate rules for acceptance
@@ -183,10 +184,16 @@ impl Connection {
                 if seqn != self.recv.nxt {
                     return Ok(());
                 }
+            } else {
+                if !is_between_wrapped(self.recv.nxt.wrapping_sub(1), seqn, w_end) {
+                    return Ok(());
+                }
+            }
+        } else {
+            if self.recv.wnd == 0 {
+                return Ok(());
             }
         }
-
-        let w_end = self.recv.nxt.wrapping_add(self.recv.wnd as u32);
 
         if !is_between_wrapped(self.recv.nxt.wrapping_sub(1), seqn, w_end)
             && !is_between_wrapped(
