@@ -177,8 +177,13 @@ impl Connection {
         //
         let seqn = tcp_header.sequence_number();
         let w_end = self.recv.nxt.wrapping_add(self.recv.wnd as u32);
+
         if !is_between_wrapped(self.recv.nxt.wrapping_sub(1), seqn, w_end)
-            && !is_between_wrapped(self.recv.nxt.wrapping_sub(1), seqn + data.len() - 1, e_end)
+            && !is_between_wrapped(
+                self.recv.nxt.wrapping_sub(1),
+                seqn + data.len() as u32 - 1,
+                w_end,
+            )
         {
             return Ok(());
         }
