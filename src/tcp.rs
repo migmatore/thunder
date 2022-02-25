@@ -6,11 +6,21 @@ pub enum State {
     Estab,
 }
 
+impl State {
+    fn is_synchronized(&self) -> bool {
+        match *self {
+            State::SybnRcvd => false,
+            State::Estab => true,
+        }
+    }
+}
+
 pub struct Connection {
     state: State,
     send: SendSequenceSpace,
     recv: RecvSequenceSpace,
     ip: etherparse::Ipv4Header,
+    tcp: etherparse::TcpHeader,
 }
 
 struct SendSequenceSpace {
@@ -65,6 +75,7 @@ impl Connection {
         }
 
         let iss = 0;
+        let wnd = 10;
 
         let mut c = Connection {
             state: State::SybnRcvd,
@@ -72,7 +83,7 @@ impl Connection {
                 iss,
                 una: iss,
                 nxt: iss + 1,
-                wnd: 10,
+                wnd: wnd,
                 up: false,
 
                 wl1: 0,
@@ -84,6 +95,12 @@ impl Connection {
                 wnd: tcp_header.window_size(),
                 up: false,
             },
+            tcp: etherparse::TcpHeader::new(
+                tcp_header.destination_port(),
+                tcp_header.source_port(),
+                iss,
+                wnd,
+            ),
             ip: etherparse::Ipv4Header::new(
                 0,
                 64,
@@ -104,13 +121,6 @@ impl Connection {
         };
 
         // need to start establishing a connection
-        let mut syn_ack = etherparse::TcpHeader::new(
-            tcp_header.destination_port(),
-            tcp_header.source_port(),
-            c.send.iss,
-            c.send.wnd,
-        );
-
         syn_ack.acknowledgment_number = c.recv.nxt;
         syn_ack.syn = true;
         syn_ack.ack = true;
@@ -149,6 +159,12 @@ impl Connection {
         // );
     }
 
+    fn send_rst<'a>(
+        &mut self,
+        nic: &mut tun_tap::Iface,
+    ) -> io::Result<()> {
+    }
+
     pub fn on_packet<'a>(
         &mut self,
         nic: &mut tun_tap::Iface,
@@ -165,6 +181,11 @@ impl Connection {
         let ackn = tcp_header.acknowledgment_number();
 
         if !is_between_wrapped(self.send.una, ackn, self.send.nxt.wrapping_add(1)) {
+            if !self.state.is_synchronized() {
+                // accroding to Reset Generation< we should send a RST
+                self.send_rst(nic);
+            }
+
             return Ok(());
             // return Err(io::Error::new(
             //     io::ErrorKind::BrokenPipe,
@@ -225,7 +246,6 @@ impl Connection {
                 self.state = State::Estab;
 
                 // now let's terminate the connection!
-                
             }
             State::Estab => {
                 unimplemented!()
