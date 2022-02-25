@@ -164,8 +164,13 @@ impl Connection {
         //
         let ackn = tcp_header.acknowledgment_number();
 
+        if !is_between_wrapped(self.send.una, ackn, self.send.nxt.wrapping_add(1)) {
+            return Ok(());
+        }
+
         //
         // valid segment ckeck 
+        // RCV.NXT =< SEG.SEQ < RCV.NXT+RCV.WND
         //
 
 
@@ -236,7 +241,7 @@ fn is_between_wrapped(start: usize, x: usize, end: usize) -> bool {
             //               S+E-^
             //
             // or, on other words, iff S < E < X
-            if end >= x && end < start {
+            if end < start && end > x {
 
             } else {
                 return false;
