@@ -121,9 +121,9 @@ impl Connection {
         };
 
         // need to start establishing a connection
-        
-        syn_ack.syn = true;
-        syn_ack.ack = true;
+
+        self.tcp.syn = true;
+        self.tcp.ack = true;
 
         c.write(nic, &[])?;
 
@@ -144,8 +144,13 @@ impl Connection {
 
         self.tcp.sequence_number = self.send.nxt;
         self.tcp.acknowledgment_number = self.recv.nxt;
-        self.ip
-            .set_payload_len(self.tcp.header_len() as usize + payload.len());
+
+        let size = std::cmp::min(
+            buf.len(),
+            self.tcp.header_len() as usize + self.ip.header_len() as usize + payload.len(),
+        );
+
+        self.ip.set_payload_len(size);
 
         // the kernel does this for us
         // self.tcp.checksum = self.tcp
@@ -156,7 +161,7 @@ impl Connection {
         // eprintln!("got tcp header:\n{:02x?}", tcp_header);
 
         // write out the headers
-        
+
         use std::io::Write;
 
         let mut unwritten = &mut buf[..];
@@ -165,15 +170,17 @@ impl Connection {
         self.tcp.write(&mut unwritten);
         let payload_bytes = unwritten.write(payload)?;
         let unwritten = unwritten.len();
-        
+
         self.send.nxt.wrapping_add(payload_bytes as u32);
 
         if self.tcp.syn {
-            self.send.nxt.wrapping_add(1);
+            self.send.nxt = self.send.nxt.wrapping_add(1);
+            self.tcp.syn = false;
         }
 
         if self.tcp.fin {
-            self.send.nxt.wrapping_add(1);
+            self.send.nxt = self.send.nxt.wrapping_add(1);
+            self.tcp.fin = false;
         }
 
         //eprintln!("responding with {:02x?}", &buf[..buf.len() - unwritten]);
@@ -184,9 +191,16 @@ impl Connection {
 
     fn send_rst(&mut self, nic: &mut tun_tap::Iface) -> io::Result<()> {
         self.tcp.rst = true;
+        // TODO: fix sequence numbers here
+        // If the incoming segment has an ACK field, the reset takes its
+        // sequence number from the ACK field of the segment, otherwise the 
+        // reset has sequence number zero and the ACK field is set to the sum
+        // of the sequence number and segment lenght of the incoming segment.
+        // The connection remains in the same state.
         self.tcp.sequence_number = 0;
         self.tcp.acknowledgment_number = 0;
-        self.ip.set_payload_len(self.tcp.header_len());
+        self.write(nic, &[])?;
+        Ok(())
     }
 
     pub fn on_packet<'a>(
