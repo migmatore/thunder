@@ -82,7 +82,7 @@ impl Connection {
             send: SendSequenceSpace {
                 iss,
                 una: iss,
-                nxt: iss + 1,
+                nxt: iss,
                 wnd: wnd,
                 up: false,
 
@@ -121,31 +121,11 @@ impl Connection {
         };
 
         // need to start establishing a connection
-        syn_ack.acknowledgment_number = c.recv.nxt;
+        
         syn_ack.syn = true;
         syn_ack.ack = true;
 
-        c.ip.set_payload_len(syn_ack.header_len() as usize + 0);
-
-        // the kernel does this for us
-        // syn_ack.checksum = syn_ack
-        //     .calc_checksum_ipv4(&c.ip, &[])
-        //     .expect("filed to compute ckecksum");
-
-        // eprintln!("got ip header:\n{:02x?}", ip_header);
-        // eprintln!("got tcp header:\n{:02x?}", tcp_header);
-
-        // write out the headers
-        let unwritten = {
-            let mut unwritten = &mut buf[..];
-            c.ip.write(&mut unwritten);
-            syn_ack.write(&mut unwritten);
-            unwritten.len()
-        };
-
-        //eprintln!("responding with {:02x?}", &buf[..buf.len() - unwritten]);
-
-        nic.send(&buf[..unwritten]);
+        c.write(nic, &[])?;
 
         Ok(Some(c))
 
@@ -183,11 +163,23 @@ impl Connection {
 
         self.ip.write(&mut unwritten);
         self.tcp.write(&mut unwritten);
-        let payload_bytes = unwritten.write(payload);
+        let payload_bytes = unwritten.write(payload)?;
+        let unwritten = unwritten.len();
+        
+        self.send.nxt.wrapping_add(payload_bytes as u32);
+
+        if self.tcp.syn {
+            self.send.nxt.wrapping_add(1);
+        }
+
+        if self.tcp.fin {
+            self.send.nxt.wrapping_add(1);
+        }
 
         //eprintln!("responding with {:02x?}", &buf[..buf.len() - unwritten]);
 
         nic.send(&buf[..buf.len() - unwritten])?;
+        Ok(payload_bytes)
     }
 
     fn send_rst(&mut self, nic: &mut tun_tap::Iface) -> io::Result<()> {
