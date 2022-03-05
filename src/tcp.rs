@@ -4,6 +4,7 @@ pub enum State {
     //Listen,
     SybnRcvd,
     Estab,
+    FinWait1,
 }
 
 impl State {
@@ -11,6 +12,7 @@ impl State {
         match *self {
             State::SybnRcvd => false,
             State::Estab => true,
+            State::FinWait1 => true,
         }
     }
 }
@@ -193,7 +195,7 @@ impl Connection {
         self.tcp.rst = true;
         // TODO: fix sequence numbers here
         // If the incoming segment has an ACK field, the reset takes its
-        // sequence number from the ACK field of the segment, otherwise the 
+        // sequence number from the ACK field of the segment, otherwise the
         // reset has sequence number zero and the ACK field is set to the sum
         // of the sequence number and segment lenght of the incoming segment.
         // The connection remains in the same state.
@@ -201,8 +203,8 @@ impl Connection {
         // TODO: handle syncronized RST
         // If the connection is in a syncronized state (ESTABLISHED,
         // FIN_WAIT-1, FIN-WAIT-2, CLOSE-WAIT, CLOSING, LAST-ACK, TIME-WAIT),
-        // any unacceptable segmnet (out of window sequence nubmer or 
-        // unacceptible acknowledgment number) must elicit only an empty 
+        // any unacceptable segmnet (out of window sequence nubmer or
+        // unacceptible acknowledgment number) must elicit only an empty
         // acknowledgment segment containing the current send-sequence number
         // and an acknowledgment indicating the next sequence number expected
         // to be received, and the connection remains in the same state
@@ -293,9 +295,15 @@ impl Connection {
                 self.state = State::Estab;
 
                 // now let's terminate the connection!
+                // TODO: needs to be stored in the retransmission queue!
+                self.tcp.fin = true;
+                self.write(nic, &[])?;
+                self.state = State::FinWait1;
             }
             State::Estab => {
-                unimplemented!()
+                if !tcp_header.fin() || !data.is_empty() {
+                    unimplemented!();
+                }
             }
         }
 
