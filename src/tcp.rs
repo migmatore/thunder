@@ -197,6 +197,15 @@ impl Connection {
         // reset has sequence number zero and the ACK field is set to the sum
         // of the sequence number and segment lenght of the incoming segment.
         // The connection remains in the same state.
+        //
+        // TODO: handle syncronized RST
+        // If the connection is in a syncronized state (ESTABLISHED,
+        // FIN_WAIT-1, FIN-WAIT-2, CLOSE-WAIT, CLOSING, LAST-ACK, TIME-WAIT),
+        // any unacceptable segmnet (out of window sequence nubmer or 
+        // unacceptible acknowledgment number) must elicit only an empty 
+        // acknowledgment segment containing the current send-sequence number
+        // and an acknowledgment indicating the next sequence number expected
+        // to be received, and the connection remains in the same state
         self.tcp.sequence_number = 0;
         self.tcp.acknowledgment_number = 0;
         self.write(nic, &[])?;
