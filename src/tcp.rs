@@ -304,7 +304,10 @@ impl Connection {
                 if !tcp_header.fin() || !data.is_empty() {
                     unimplemented!();
                 }
+
+                self.write(nic, &[])?;
             }
+            State::FinWait1 => todo!(),
         }
 
         Ok(())
