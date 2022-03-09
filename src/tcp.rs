@@ -5,14 +5,14 @@ pub enum State {
     SybnRcvd,
     Estab,
     FinWait1,
-    CloseWait,
+    Closing,
 }
 
 impl State {
     fn is_synchronized(&self) -> bool {
         match *self {
             State::SybnRcvd => false,
-            State::Estab | State::FinWait1 | State::CloseWait => true,
+            State::Estab | State::FinWait1 | State::Closing => true,
         }
     }
 }
@@ -301,6 +301,9 @@ impl Connection {
                 self.state = State::FinWait1;
             }
             State::Estab => {
+                unimplemented!();
+            },
+            State::FinWait1 => {
                 if !tcp_header.fin() || !data.is_empty() {
                     unimplemented!();
                 }
@@ -308,7 +311,6 @@ impl Connection {
                 self.write(nic, &[])?;
                 self.state = State::CloseWait;
             }
-            State::FinWait1 => todo!(),
         }
 
         Ok(())
