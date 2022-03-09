@@ -5,14 +5,14 @@ pub enum State {
     SybnRcvd,
     Estab,
     FinWait1,
+    CloseWait,
 }
 
 impl State {
     fn is_synchronized(&self) -> bool {
         match *self {
             State::SybnRcvd => false,
-            State::Estab => true,
-            State::FinWait1 => true,
+            State::Estab | State::FinWait1 | State::CloseWait => true,
         }
     }
 }
@@ -306,6 +306,7 @@ impl Connection {
                 }
 
                 self.write(nic, &[])?;
+                self.state = State::CloseWait;
             }
             State::FinWait1 => todo!(),
         }
