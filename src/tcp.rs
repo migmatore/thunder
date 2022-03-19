@@ -223,8 +223,6 @@ impl Connection {
         data: &'a [u8],
     ) -> io::Result<()> {
         // first, check that sequence numbers are valid
-        self.send.una = ackn;
-
         let seqn = tcp_header.sequence_number();
 
         let mut slen = data.len() as u32;
@@ -264,6 +262,11 @@ impl Connection {
 
         self.recv.nxt = seqn.wrapping_add(slen);
         // TODO: if _not_ acceptable, send ACK
+        // <SEQ=SND.NXT><ACK=RCV.NXT><CTL=ACK>
+
+        if !tcp_header.ack() {
+            return Ok(());
+        }
 
         //
         // acceptable ack check
@@ -285,17 +288,24 @@ impl Connection {
             // ));
         }
 
-        match self.state {
-            // State::Listen => todo!(),
-            State::SybnRcvd => {
+        self.send.una = ackn;
+
+        if let State::SybnRcvd = self.state {
+            if !is_between_wrapped(self.send.una.wrapping_sub(1), ackn, self.send.nxt.wrapping_add(1)) {
+                // must have ACKed our SYN, since we detected at least one acked byte,
+                // and we have only sent one byte (the SYN).
+                self.state = State::Estab;
+            } else {
+                // TODO: RST
+            }
+        }
+
                 // expect to get an ACK for our SYN
                 if !tcp_header.ack() {
                     return Ok(());
                 }
 
-                // must have ACKed our SYN, since we detected at least one acked byte,
-                // and we have only sent one byte (the SYN).
-                self.state = State::Estab;
+                
 
                 // now let's terminate the connection!
                 // TODO: needs to be stored in the retransmission queue!
