@@ -85,7 +85,7 @@ impl Connection {
             send: SendSequenceSpace {
                 iss,
                 una: iss,
-                nxt: iss,
+                nxt: iss + 1,
                 wnd: wnd,
                 up: false,
 
@@ -157,9 +157,10 @@ impl Connection {
             .set_payload_len(size - self.ip.header_len() as usize);
 
         // the kernel does this for us
-        // self.tcp.checksum = self.tcp
-        //     .calc_checksum_ipv4(&self.ip, &[])
-        //     .expect("filed to compute ckecksum");
+        self.tcp.checksum = self
+            .tcp
+            .calc_checksum_ipv4(&self.ip, &[])
+            .expect("filed to compute ckecksum");
 
         // eprintln!("got ip header:\n{:02x?}", ip_header);
         // eprintln!("got tcp header:\n{:02x?}", tcp_header);
