@@ -224,6 +224,7 @@ impl Connection {
         tcp_header: etherparse::TcpHeaderSlice<'a>,
         data: &'a [u8],
     ) -> io::Result<()> {
+        eprintln!("got packet");
         // first, check that sequence numbers are valid
         let seqn = tcp_header.sequence_number();
 
@@ -288,7 +289,7 @@ impl Connection {
         let ackn = tcp_header.acknowledgment_number();
 
         if let State::SybnRcvd = self.state {
-            if !is_between_wrapped(
+            if is_between_wrapped(
                 self.send.una.wrapping_sub(1),
                 ackn,
                 self.send.nxt.wrapping_add(1),
@@ -301,7 +302,7 @@ impl Connection {
             }
         }
 
-        if let State::Estab = self.state {
+        if let State::Estab | State::FinWait1 | State::FinWait2 = self.state {
             if !is_between_wrapped(self.send.una, ackn, self.send.nxt.wrapping_add(1)) {
                 return Ok(());
                 // return Err(io::Error::new(
@@ -315,17 +316,18 @@ impl Connection {
             // TODO
             assert!(data.is_empty());
 
-            // now let's terminate the connection!
-            // TODO: needs to be stored in the retransmission queue!
-            self.tcp.fin = true;
-            self.write(nic, &[])?;
-            self.state = State::FinWait1;
+            if let State::Estab = self.state {
+                // now let's terminate the connection!
+                // TODO: needs to be stored in the retransmission queue!
+                self.tcp.fin = true;
+                self.write(nic, &[])?;
+                self.state = State::FinWait1;    
+            }
         }
 
         if let State::FinWait1 = self.state {
             if self.send.una == self.send.iss + 2 {
                 // our FIN has been ACKed!
-
                 self.state = State::FinWait2
             }
         }
@@ -334,7 +336,6 @@ impl Connection {
             match self.state {
                 State::FinWait2 => {
                     // we're done with the connection
-
                     self.write(nic, &[])?;
                     self.state = State::TimeWait;
                 }
