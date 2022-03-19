@@ -5,6 +5,7 @@ pub enum State {
     SybnRcvd,
     Estab,
     FinWait1,
+    FinWait2,
     Closing,
 }
 
@@ -291,7 +292,7 @@ impl Connection {
                 }
 
                 // must have ACKed our SYN, since we detected at least one acked byte,
-                // and we have only sent one byte (THE SYN).
+                // and we have only sent one byte (the SYN).
                 self.state = State::Estab;
 
                 // now let's terminate the connection!
@@ -302,14 +303,31 @@ impl Connection {
             }
             State::Estab => {
                 unimplemented!();
-            },
+            }
             State::FinWait1 => {
                 if !tcp_header.fin() || !data.is_empty() {
                     unimplemented!();
                 }
 
+                // must have ACKed our FIN, since we detected at least one acked byte,
+                // and we have only sent one byte (the FIN).
+
+                self.state = State::FinWait2;
+                self.tcp.fin = false;
                 self.write(nic, &[])?;
-                self.state = State::CloseWait;
+                self.state = State::Closing;
+            }
+            State::Closing => {
+                if !tcp_header.fin() || !data.is_empty() {
+                    unimplemented!();
+                }
+
+                // must have ACKed our FIN, since we detected at least one acked byte,
+                // and we have only sent one byte (the FIN).
+
+                self.tcp.fin = false;
+                self.write(nic, &[])?;
+                self.state = State::Closing;
             }
         }
 
