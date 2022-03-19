@@ -6,14 +6,14 @@ pub enum State {
     Estab,
     FinWait1,
     FinWait2,
-    Closing,
+    TimeWait,
 }
 
 impl State {
     fn is_synchronized(&self) -> bool {
         match *self {
             State::SybnRcvd => false,
-            State::Estab | State::FinWait1 | State::FinWait2 | State::Closing => true,
+            State::Estab | State::FinWait1 | State::FinWait2 | State::TimeWait => true,
         }
     }
 }
@@ -125,8 +125,8 @@ impl Connection {
 
         // need to start establishing a connection
 
-        self.tcp.syn = true;
-        self.tcp.ack = true;
+        c.tcp.syn = true;
+        c.tcp.ack = true;
 
         c.write(nic, &[])?;
 
@@ -273,74 +273,61 @@ impl Connection {
         // SND.UNA < SEG.ACK =< SND.NXT
         // but remember wrapping!
         //
+
         let ackn = tcp_header.acknowledgment_number();
 
-        if !is_between_wrapped(self.send.una, ackn, self.send.nxt.wrapping_add(1)) {
-            if !self.state.is_synchronized() {
-                // accroding to Reset Generation< we should send a RST
-                self.send_rst(nic);
-            }
-
-            return Ok(());
-            // return Err(io::Error::new(
-            //     io::ErrorKind::BrokenPipe,
-            //     "tried to ack unset byte",
-            // ));
-        }
-
-        self.send.una = ackn;
-
         if let State::SybnRcvd = self.state {
-            if !is_between_wrapped(self.send.una.wrapping_sub(1), ackn, self.send.nxt.wrapping_add(1)) {
+            if !is_between_wrapped(
+                self.send.una.wrapping_sub(1),
+                ackn,
+                self.send.nxt.wrapping_add(1),
+            ) {
                 // must have ACKed our SYN, since we detected at least one acked byte,
                 // and we have only sent one byte (the SYN).
                 self.state = State::Estab;
             } else {
-                // TODO: RST
+                // TODO: <SEQ=SEG.ACK><CTL=RST>
             }
         }
 
-                // expect to get an ACK for our SYN
-                if !tcp_header.ack() {
-                    return Ok(());
-                }
-
-                
-
-                // now let's terminate the connection!
-                // TODO: needs to be stored in the retransmission queue!
-                self.tcp.fin = true;
-                self.write(nic, &[])?;
-                self.state = State::FinWait1;
+        if let State::Estab = self.state {
+            if !is_between_wrapped(self.send.una, ackn, self.send.nxt.wrapping_add(1)) {
+                return Ok(());
+                // return Err(io::Error::new(
+                //     io::ErrorKind::BrokenPipe,
+                //     "tried to ack unset byte",
+                // ));
             }
-            State::Estab => {
-                unimplemented!();
+
+            self.send.una = ackn;
+
+            // TODO
+            assert!(data.is_empty());
+
+            // now let's terminate the connection!
+            // TODO: needs to be stored in the retransmission queue!
+            self.tcp.fin = true;
+            self.write(nic, &[])?;
+            self.state = State::FinWait1;
+        }
+
+        if let State::FinWait1 = self.state {
+            if self.send.una == self.send.iss + 2 {
+                // our FIN has been ACKed!
+
+                self.state = State::FinWait2
             }
-            State::FinWait1 => {
-                if !tcp_header.fin() || !data.is_empty() {
-                    unimplemented!();
+        }
+
+        if tcp_header.fin() {
+            match self.state {
+                State::FinWait2 => {
+                    // we're done with the connection
+
+                    self.write(nic, &[])?;
+                    self.state = State::TimeWait;
                 }
-
-                // must have ACKed our FIN, since we detected at least one acked byte,
-                // and we have only sent one byte (the FIN).
-
-                self.state = State::FinWait2;
-            }
-            State::FinWait2 => {
-                if !tcp_header.fin() || !data.is_empty() {
-                    unimplemented!();
-                }
-
-                self.tcp.fin = false;
-                self.write(nic, &[])?;
-                self.state = State::Closing;
-
-                // must have ACKed our FIN, since we detected at least one acked byte,
-                // and we have only sent one byte (the FIN).
-
-                self.tcp.fin = false;
-                self.write(nic, &[])?;
-                self.state = State::Closing;
+                _ => unimplemented!()
             }
         }
 
