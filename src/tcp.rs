@@ -223,35 +223,8 @@ impl Connection {
         data: &'a [u8],
     ) -> io::Result<()> {
         // first, check that sequence numbers are valid
-        //
-        // acceptable ack check
-        // SND.UNA < SEG.ACK =< SND.NXT
-        // but remember wrapping!
-        //
-        let ackn = tcp_header.acknowledgment_number();
-
-        if !is_between_wrapped(self.send.una, ackn, self.send.nxt.wrapping_add(1)) {
-            if !self.state.is_synchronized() {
-                // accroding to Reset Generation< we should send a RST
-                self.send_rst(nic);
-            }
-
-            return Ok(());
-            // return Err(io::Error::new(
-            //     io::ErrorKind::BrokenPipe,
-            //     "tried to ack unset byte",
-            // ));
-        }
-
         self.send.una = ackn;
 
-        //
-        // valid segment ckeck. okay if it acks at least one byte, which means that at least one of
-        // the following is true:
-        //
-        // RCV.NXT =< SEG.SEQ < RCV.NXT+RCV.WND
-        // RCV.NXT =< SEG.SEQ+SEG.LEN-1 < RCV.NXT+RCV.WND
-        //
         let seqn = tcp_header.sequence_number();
 
         let mut slen = data.len() as u32;
@@ -279,14 +252,38 @@ impl Connection {
             if self.recv.wnd == 0 {
                 return Ok(());
             } else if !is_between_wrapped(self.recv.nxt.wrapping_sub(1), seqn, w_end)
-                && !is_between_wrapped(self.recv.nxt.wrapping_sub(1), seqn.wrapping_add(slen - 1), w_end)
+                && !is_between_wrapped(
+                    self.recv.nxt.wrapping_sub(1),
+                    seqn.wrapping_add(slen - 1),
+                    w_end,
+                )
             {
                 return Ok(());
             }
         }
 
         self.recv.nxt = seqn.wrapping_add(slen);
-        // TODO: make sure this gets acked
+        // TODO: if _not_ acceptable, send ACK
+
+        //
+        // acceptable ack check
+        // SND.UNA < SEG.ACK =< SND.NXT
+        // but remember wrapping!
+        //
+        let ackn = tcp_header.acknowledgment_number();
+
+        if !is_between_wrapped(self.send.una, ackn, self.send.nxt.wrapping_add(1)) {
+            if !self.state.is_synchronized() {
+                // accroding to Reset Generation< we should send a RST
+                self.send_rst(nic);
+            }
+
+            return Ok(());
+            // return Err(io::Error::new(
+            //     io::ErrorKind::BrokenPipe,
+            //     "tried to ack unset byte",
+            // ));
+        }
 
         match self.state {
             // State::Listen => todo!(),
