@@ -13,7 +13,7 @@ impl State {
     fn is_synchronized(&self) -> bool {
         match *self {
             State::SybnRcvd => false,
-            State::Estab | State::FinWait1 | State::Closing => true,
+            State::Estab | State::FinWait1 | State::FinWait2 | State::Closing => true,
         }
     }
 }
@@ -243,6 +243,8 @@ impl Connection {
             // ));
         }
 
+        self.send.una = ackn;
+
         //
         // valid segment ckeck. okay if it acks at least one byte, which means that at least one of
         // the following is true:
@@ -277,11 +279,14 @@ impl Connection {
             if self.recv.wnd == 0 {
                 return Ok(());
             } else if !is_between_wrapped(self.recv.nxt.wrapping_sub(1), seqn, w_end)
-                && !is_between_wrapped(self.recv.nxt.wrapping_sub(1), seqn + slen - 1, w_end)
+                && !is_between_wrapped(self.recv.nxt.wrapping_sub(1), seqn.wrapping_add(slen - 1), w_end)
             {
                 return Ok(());
             }
         }
+
+        self.recv.nxt = seqn.wrapping_add(slen);
+        // TODO: make sure this gets acked
 
         match self.state {
             // State::Listen => todo!(),
@@ -313,14 +318,15 @@ impl Connection {
                 // and we have only sent one byte (the FIN).
 
                 self.state = State::FinWait2;
-                self.tcp.fin = false;
-                self.write(nic, &[])?;
-                self.state = State::Closing;
             }
-            State::Closing => {
+            State::FinWait2 => {
                 if !tcp_header.fin() || !data.is_empty() {
                     unimplemented!();
                 }
+
+                self.tcp.fin = false;
+                self.write(nic, &[])?;
+                self.state = State::Closing;
 
                 // must have ACKed our FIN, since we detected at least one acked byte,
                 // and we have only sent one byte (the FIN).
