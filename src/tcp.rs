@@ -78,7 +78,7 @@ impl Connection {
         }
 
         let iss = 0;
-        let wnd = 10;
+        let wnd = 1024;
 
         let mut c = Connection {
             state: State::SybnRcvd,
@@ -153,7 +153,8 @@ impl Connection {
             self.tcp.header_len() as usize + self.ip.header_len() as usize + payload.len(),
         );
 
-        self.ip.set_payload_len(size);
+        self.ip
+            .set_payload_len(size - self.ip.header_len() as usize);
 
         // the kernel does this for us
         // self.tcp.checksum = self.tcp
@@ -237,14 +238,18 @@ impl Connection {
 
         let w_end = self.recv.nxt.wrapping_add(self.recv.wnd as u32);
 
-        if slen == 0 {
+        let okay = if slen == 0 {
             // zero-length segment has separate rules for acceptance
             if self.recv.wnd == 0 {
                 if seqn != self.recv.nxt {
-                    return Ok(());
+                    false
+                } else {
+                    true
                 }
             } else if !is_between_wrapped(self.recv.nxt.wrapping_sub(1), seqn, w_end) {
-                return Ok(());
+                false
+            } else {
+                true
             }
         } else {
             if self.recv.wnd == 0 {
@@ -256,13 +261,18 @@ impl Connection {
                     w_end,
                 )
             {
-                return Ok(());
+                false
+            } else {
+                true
             }
+        };
+
+        if !okay {
+            self.write(nic, &[])?;
+            return Ok(());
         }
 
         self.recv.nxt = seqn.wrapping_add(slen);
-        // TODO: if _not_ acceptable, send ACK
-        // <SEQ=SND.NXT><ACK=RCV.NXT><CTL=ACK>
 
         if !tcp_header.ack() {
             return Ok(());
@@ -327,7 +337,7 @@ impl Connection {
                     self.write(nic, &[])?;
                     self.state = State::TimeWait;
                 }
-                _ => unimplemented!()
+                _ => unimplemented!(),
             }
         }
 
