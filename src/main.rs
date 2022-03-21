@@ -13,16 +13,9 @@ struct Quad {
 }
 
 fn main() -> io::Result<()> {
-    let mut connections: HashMap<Quad, tcp::Connection> = Default::default();
-
-    let mut nic = Iface::without_packet_info("tun0", Mode::Tun)?;
-    //fs::write("/sys/class/leds/red_red/trigger", "heartbeat").expect("error");
-
-    let mut buf = [0u8; 1504];
-
     loop {
         let nbytes = nic.recv(&mut buf[..])?;
-        
+
         // if s/without_packet_info/new/:
         //
         // let _eth_flags = u16::from_be_bytes([buf[0], buf[1]]);
@@ -46,9 +39,8 @@ fn main() -> io::Result<()> {
                 }
 
                 // parsing tcp header
-                match etherparse::TcpHeaderSlice::from_slice(
-                    &buf[ip_header.slice().len()..nbytes],
-                ) {
+                match etherparse::TcpHeaderSlice::from_slice(&buf[ip_header.slice().len()..nbytes])
+                {
                     Ok(tcp_header) => {
                         use std::collections::hash_map::Entry;
 
@@ -59,7 +51,12 @@ fn main() -> io::Result<()> {
                             dst: (dst, tcp_header.destination_port()),
                         }) {
                             Entry::Occupied(mut c) => {
-                                c.get_mut().on_packet(&mut nic, ip_header, tcp_header, &buf[datai..nbytes])?;
+                                c.get_mut().on_packet(
+                                    &mut nic,
+                                    ip_header,
+                                    tcp_header,
+                                    &buf[datai..nbytes],
+                                )?;
                             }
                             Entry::Vacant(e) => {
                                 if let Some(c) = tcp::Connection::accept(
