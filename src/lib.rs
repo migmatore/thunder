@@ -33,6 +33,13 @@ struct ConnectionManager {
     buf: [u8; 1504],
 }
 
+impl ConnectionManager {
+    fn run_on(self, rx: mpsc::Sender<InterfaceRequest>) {
+        // main event loop for packet processing
+        for req in rx {}
+    }
+}
+
 impl Interface {
     pub fn new() -> io::Result<Self> {
         let cm = ConnectionManager {
