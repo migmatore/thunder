@@ -58,7 +58,16 @@ impl Interface {
     }
 
     pub fn bind(&mut self, port: u16) -> io::Result<TcpListener> {
-        unimplemented!()
+        let (ack, rx) = mpsc::channel();
+        
+        self.tx.send(InterfaceRequest::Bind {
+            port,
+            ack,
+        });
+        
+        rx.recv().unwrap();
+
+        Ok(TcpListener(self.tx.clone()))
     }
 }
 
