@@ -4,6 +4,8 @@ use std::io::prelude::*;
 use std::sync::mpsc;
 use std::thread;
 
+type InterfaceHandle = mpsc::Sender<InterfaceRequest>;
+
 enum InterfaceRequest {
     Write {
         bytes: Vec<u8>,
@@ -24,7 +26,7 @@ enum InterfaceRequest {
 }
 
 pub struct Interface {
-    tx: mpsc::Sender<InterfaceRequest>,
+    tx: InterfaceHandle,
     jh: thread::JoinHandle<()>,
 }
 struct ConnectionManager {
@@ -60,7 +62,7 @@ impl Interface {
     }
 }
 
-pub struct TcpStream {}
+pub struct TcpStream(InterfaceHandle);
 
 impl Read for TcpStream {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
@@ -78,7 +80,7 @@ impl Write for TcpStream {
     }
 }
 
-pub struct TcpListener {}
+pub struct TcpListener(InterfaceHandle);
 
 impl TcpListener {
     pub fn accept(&mut self) -> io::Result<TcpStream> {
