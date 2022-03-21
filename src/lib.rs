@@ -2,15 +2,32 @@ use std::collections::HashMap;
 use std::io;
 use std::io::prelude::*;
 use std::sync::mpsc;
+use std::thread;
 
 enum InterfaceRequest {
-    Write(Vec<u8>, mpsc::Sender<usize>),
-    Flush(mpsc::Sender<()>),
-    Read(usize, mpsc::Sender<Vec<u8>>),
+    Write {
+        bytes: Vec<u8>,
+        ack: mpsc::Sender<usize>,
+    },
+    Flush {
+        ack: mpsc::Sender<()>,
+    },
+    Bind {
+        port: u16,
+        ack: mpsc::Sender<()>,
+    },
+    Unbind,
+    Read {
+        max_length: usize,
+        read: mpsc::Sender<Vec<u8>>,
+    },
 }
 
-pub struct Interface(mpsc::Sender<InterfaceRequest>);
 pub struct Interface {
+    tx: mpsc::Sender<InterfaceRequest>,
+    jh: thread::JoinHandle<()>,
+}
+struct ConnectionManager {
     connections: HashMap<Quad, tcp::Connection>,
     nic: tun_tap::Iface,
     buf: [u8; 1504],
@@ -18,11 +35,17 @@ pub struct Interface {
 
 impl Interface {
     pub fn new() -> io::Result<Self> {
-        Ok(Interface {
+        let cm = ConnectionManager {
             connections: Default::default(),
             nic: tun_tap::Iface::without_packet_info("tun0", tun_tap::Mode::Tun)?,
             buf: [0u8; 1504],
-        })
+        };
+
+        let (tx, rx) = mpsc::channel();
+
+        let jh = thread::spawn(move || cm.run_on(rx));
+
+        Ok(Interface { tx, jh })
     }
 
     pub fn bind(&mut self, port: u16) -> io::Result<TcpListener> {
