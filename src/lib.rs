@@ -84,7 +84,7 @@ impl Read for TcpStream {
         
         let bytes = rx.recv().unwrap();
 
-        assert!(bytes.len() < buf.len());
+        assert!(bytes.len() <= buf.len());
 
         buf.copy_from_slice(&bytes[..]);
 
@@ -94,20 +94,18 @@ impl Read for TcpStream {
 
 impl Write for TcpStream {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        let (read, rx) = mpsc::channel();
+        let (ack, rx) = mpsc::channel();
         
-        self.tx.send(InterfaceRequest::Read {
-            max_length: buf.len(),
-            read,
+        self.tx.send(InterfaceRequest::Write {
+            bytes: Vec::from(buf),
+            ack,
         });
         
-        let bytes = rx.recv().unwrap();
+        let n = rx.recv().unwrap();
 
-        assert!(bytes.len() < buf.len());
+        assert!(n <= buf.len());
 
-        buf.copy_from_slice(&bytes[..]);
-
-        Ok(bytes.len())
+        Ok(n)
     }
 
     fn flush(&mut self) -> io::Result<()> {
