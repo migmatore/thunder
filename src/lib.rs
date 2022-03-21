@@ -4,12 +4,12 @@ use std::io::prelude::*;
 use std::sync::mpsc;
 
 enum InterfaceRequest {
-    Write(Vec<u8>),
-    Flush,
-    Read(mpsc::Sender<Vec<u8>>),
+    Write(Vec<u8>, mpsc::Sender<usize>),
+    Flush(mpsc::Sender<()>),
+    Read(usize, mpsc::Sender<Vec<u8>>),
 }
 
-pub struct Interface(mpsc::Sender<()>);
+pub struct Interface(mpsc::Sender<InterfaceRequest>);
 pub struct Interface {
     connections: HashMap<Quad, tcp::Connection>,
     nic: tun_tap::Iface,
