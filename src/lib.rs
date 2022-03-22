@@ -75,13 +75,39 @@ pub struct TcpStream(InterfaceHandle);
 
 impl Read for TcpStream {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        unimplemented!()
+        let (read, rx) = mpsc::channel();
+        
+        self.tx.send(InterfaceRequest::Read {
+            max_length: buf.len(),
+            read,
+        });
+        
+        let bytes = rx.recv().unwrap();
+
+        assert!(bytes.len() < buf.len());
+
+        buf.copy_from_slice(&bytes[..]);
+
+        Ok(bytes.len())
     }
 }
 
 impl Write for TcpStream {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        unimplemented!()
+        let (read, rx) = mpsc::channel();
+        
+        self.tx.send(InterfaceRequest::Read {
+            max_length: buf.len(),
+            read,
+        });
+        
+        let bytes = rx.recv().unwrap();
+
+        assert!(bytes.len() < buf.len());
+
+        buf.copy_from_slice(&bytes[..]);
+
+        Ok(bytes.len())
     }
 
     fn flush(&mut self) -> io::Result<()> {
