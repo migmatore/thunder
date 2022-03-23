@@ -6,12 +6,6 @@ use tun_tap::{Iface, Mode};
 
 mod tcp;
 
-#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq)]
-struct Quad {
-    src: (Ipv4Addr, u16),
-    dst: (Ipv4Addr, u16),
-}
-
 fn main() -> io::Result<()> {
     loop {
         let nbytes = nic.recv(&mut buf[..])?;
